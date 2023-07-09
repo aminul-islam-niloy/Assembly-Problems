@@ -1,0 +1,156 @@
+Certainly! Let's break down the code line by line:
+
+```assembly
+.model small
+.stack 100h
+```
+These directives specify the memory model and the size of the stack.
+
+```assembly
+.data 
+    mainmsg db "enter the main string : $"
+    submsg  db "enter the sub string : $"
+    found   db "substring found.$"
+    notfound db "substring not found.$"
+    mainst db 100 dup ("$")
+    subst db 100 dup ("$")
+```
+The `.data` section is used to declare variables and allocate memory for them. In this code, the following variables are declared:
+- `mainmsg` is a null-terminated string that prompts the user to enter the main string.
+- `submsg` is a null-terminated string that prompts the user to enter the sub string.
+- `found` is a null-terminated string that indicates the sub string was found.
+- `notfound` is a null-terminated string that indicates the sub string was not found.
+- `mainst` is an array of 100 bytes initialized with '$' characters. It will store the main string.
+- `subst` is an array of 100 bytes initialized with '$' characters. It will store the sub string.
+
+```assembly
+.code
+main proc
+    mov ax,@data
+    mov ds,ax
+```
+The `.code` section is used to write the actual code. The `main` procedure is defined here. These instructions set up the `ds` (data segment) register to point to the start of the data segment.
+
+```assembly
+    lea dx,mainmsg
+    mov ah,09h
+    int 21h
+```
+These instructions load the offset of the `mainmsg` string into the `dx` register, set the `ah` register to 09h (which represents the "print string" function), and invoke interrupt 21h to display the main message prompt.
+
+```assembly
+    mov si,0
+    
+    main_st:
+        mov ah,1
+        int 21h
+        cmp al,0dh
+        je end_main_st
+        
+        mov mainst[si],al
+        inc si
+        jmp main_st
+        
+    end_main_st:
+```
+This section of code reads characters from input using interrupt 21h function 01h (read character). It compares the read character to the carriage return character (0dh) and if they match, it jumps to `end_main_st`. Otherwise, it stores the character in the `mainst` array at the index pointed by `si`, increments `si`, and jumps back to `main_st` to continue reading characters.
+
+```assembly
+    call new_line
+    
+    lea dx,submsg
+    mov ah,09h
+    int 21h
+```
+This code calls the `new_line` procedure to print a new line. Then it displays the sub message prompt by loading the offset of the `submsg` string into `dx`, setting `ah` to 09h, and invoking interrupt 21h.
+
+```assembly
+    mov si,0
+    
+    sub_st:
+        mov ah,1
+        int 21h
+        cmp al,0dh
+        je end_sub_st
+        
+        mov subst[si],al
+        inc si
+        jmp sub_st
+        
+    end_sub_st:
+```
+Similar to the previous input reading section, this code reads characters for the sub string using interrupt 21h function 01h. It compares the read character to the carriage return character (0dh) and if they match, it jumps to `end_sub_st`. Otherwise, it stores the character in the `subst` array at
+
+ the index pointed by `si`, increments `si`, and jumps back to `sub_st` to continue reading characters.
+
+```assembly
+    call new_line
+    mov si,0
+    
+    check:
+        mov di,0
+        push si
+        
+        for_loop:
+            mov ah,mainst[si]
+            mov al,subst[di]
+            inc si
+            inc di
+            cmp al,'$'
+            je found_msg
+            cmp ah,al
+            je for_loop
+            jmp update_si
+            
+    update_si:
+        pop si
+        inc si
+        mov ah,mainst[si]
+        cmp ah,'$'
+        je not_found_msg
+        jmp check
+```
+This section of code is responsible for checking if the sub string exists within the main string. It uses nested loops to iterate over each character of the main string and the sub string. The outer loop, labeled as `check`, initializes `di` to 0 and `si` to 0. It then enters the inner loop, labeled as `for_loop`. Inside the inner loop, it compares the characters at `mainst[si]` and `subst[di]`. If they match, it continues comparing the next characters. If the character in the sub string is '$', it jumps to `found_msg`, indicating that the sub string was found. If the characters do not match, it jumps to `update_si` to increment `si` and continue comparing. If the character in the main string is '$', it jumps to `not_found_msg`, indicating that the sub string was not found. The `check` loop continues until the end of the main string is reached.
+
+```assembly
+    found_msg:
+        lea dx,found
+        mov ah,09h
+        int 21h
+        jmp exit
+
+    not_found_msg:
+        lea dx,notfound
+        mov ah,09h
+        int 21h
+        jmp exit
+```
+If the sub string is found (`found_msg` label), it displays the "substring found" message by loading the offset of the `found` string into `dx`, setting `ah` to 09h, and invoking interrupt 21h. It then jumps to `exit` to terminate the program. If the sub string is not found (`not_found_msg` label), it displays the "substring not found" message and jumps to `exit`.
+
+```assembly
+    exit:
+        mov ah,4ch
+        int 21h
+
+main endp
+```
+This is the end of the `main` procedure. It sets `ah` to 4Ch (the exit function code) and invokes interrupt 21h to exit the program.
+
+```assembly
+new_line proc
+    mov ah,2
+    mov dl,0ah
+    int 21h
+    mov dl,0dh
+    int 21h
+    ret
+new_line endp
+```
+This code defines the `new_line` procedure. It uses interrupt 21h function 02h to print a new line by loading `dl` with the ASCII code for line feed (0ah) and invoking interrupt 21h. It then does the same for the carriage return character (0dh). Finally, it returns from the procedure.
+
+```assembly
+end main
+```
+This marks the end of the `main` program.
+
+That's a detailed breakdown of the code, explaining each line's purpose and functionality.

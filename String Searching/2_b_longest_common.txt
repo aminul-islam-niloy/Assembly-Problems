@@ -1,0 +1,190 @@
+Sure! Let's go through the code line by line:
+
+```
+.model small
+.stack 100h
+```
+These directives specify the memory model and the size of the stack.
+
+```
+.data
+    string db 100 dup('$')
+    
+    inmsg db "Enter string: $"
+    outmsg db "Longest sequence is : $"
+    
+    l dw ?
+    r dw ?
+    fl dw ?
+    fr dw ?
+    prv db ? 
+    
+    max_len dw 0
+    flag db 0
+```
+The `.data` section is used to declare variables and allocate memory for them. In this code, the following variables are declared:
+
+- `string` is an array of 100 bytes, initialized with '$' characters.
+- `inmsg` is a null-terminated string that will be displayed as a prompt for user input.
+- `outmsg` is a null-terminated string that will be used to display the result.
+- `l`, `r`, `fl`, `fr` are words (2 bytes) used as pointers to elements in the `string` array.
+- `prv` is a byte used to store the previous character read from input.
+- `max_len` is a word initialized to 0, used to keep track of the length of the longest sequence found.
+- `flag` is a byte used as a flag to indicate whether a sequence has been found.
+
+```
+.code
+main proc
+```
+The `.code` section is used to write the actual code. The `main` procedure is defined here.
+
+```
+mov ax, @data
+mov ds, ax
+```
+These instructions set up the `ds` (data segment) register to point to the start of the data segment.
+
+```
+lea dx, inmsg
+mov ah, 9
+int 21h
+```
+These instructions load the offset of the `inmsg` string into the `dx` register, set the `ah` register to 9 (which represents the "print string" function), and invoke interrupt 21h to display the message.
+
+```
+lea si, string
+```
+This instruction loads the offset of the `string` array into the `si` register. It points to the first element of the array.
+
+```
+input:
+    mov ah, 1
+    int 21h
+    cmp al, 13
+    je break
+    mov [si], al
+    inc si
+    jmp input
+```
+This is a loop that reads characters from input using interrupt 21h function 01h (read character). It checks if the read character is a carriage return (ASCII value 13) and if so, jumps to the `break` label. Otherwise, it stores the character in the memory location pointed to by `si`, increments `si`, and jumps back to the `input` label to continue reading characters.
+
+```
+break:
+    call new_line
+    lea si, string
+    mov l, si
+    mov r, si
+    mov fl, si
+    mov fr, si
+    mov cx, 1
+```
+After the input loop is terminated, this code is executed. It calls the `new_line` procedure to print a new line character, resets the pointers `l`, `r`, `fl`, `fr` to the start of the `string` array, and initializes `cx` to 1.
+
+```
+worker:
+    mov dl, [si]
+    inc si
+    mov bl, [si]
+    cmp bl, '$'
+    je final_chk
+    cmp bl, dl
+    jge include
+    jl exclude
+```
+This is the main loop of the program. It compares adjacent
+
+ characters in the `string` array to find sequences. It first loads the characters at the current and next positions into `dl` and `bl` registers, respectively. Then it compares `bl` to '$' to check for the end of the string. If it's not the end, it compares `bl` to `dl` to determine if the next character should be included in the sequence (jumps to `include`) or excluded (jumps to `exclude`).
+
+```
+include:
+    inc cx
+    mov r, si
+    jmp worker
+```
+If the next character should be included, it increments `cx` (the count of the sequence length), updates `r` (the right pointer) to `si` (the current position), and jumps back to `worker` to continue searching for the next character.
+
+```
+final_chk:
+    mov flag, 1
+```
+When the end of the string is reached, this code is executed, setting `flag` to 1 to indicate that a sequence has been found.
+
+```
+exclude:
+    cmp cx, max_len
+    jg big_found
+    jle not_found
+```
+If the next character should be excluded, this code is executed. It compares the length of the current sequence (`cx`) to the maximum length found so far (`max_len`). If it's greater, it jumps to `big_found` to update the maximum length and the left and right pointers. Otherwise, it jumps to `not_found`.
+
+```
+big_found:
+    mov max_len, cx
+    mov ax, l
+    mov fl, ax
+    mov ax, r
+    mov fr, ax
+    mov l, si
+    mov r, si
+    mov cx, 1
+    cmp flag, 1
+    je output
+    jmp worker
+```
+If the current sequence is longer than the maximum length found so far, this code is executed. It updates `max_len`, `fl`, `fr`, `l`, and `r` with the appropriate values. Then it checks if `flag` is set (indicating that a sequence has been found) and if so, it jumps to the `output` label. Otherwise, it jumps back to `worker` to search for the next sequence.
+
+```
+not_found:
+    mov l, si
+    mov r, si
+    mov cx, 1
+    cmp flag, 1
+    je output
+    jmp worker
+```
+If the current sequence is not longer than the maximum length found so far, this code is executed. It resets `l`, `r`, and `cx` to start a new search. Then it checks if `flag` is set and if so, it jumps to the `output` label. Otherwise, it jumps back to `worker` to search for the next sequence.
+
+```
+output:
+    lea dx, outmsg
+    mov ah, 9
+    int 21h
+    mov si, fl
+    print:
+        mov dl, [si]
+        mov ah, 2
+        int 21h
+        inc si
+        cmp si, fr
+        jg exit
+        jmp print
+```
+This code is executed after the search is completed. It prints the `outmsg` string using interrupt 21h function 09h (print string). Then it sets `si` to `fl` (the left pointer) and enters a loop that prints the characters of the longest sequence using interrupt 21h function 02h (print character). The loop continues until `si` reaches `fr` (the right pointer).
+
+```
+exit:
+    mov ah, 4ch
+    int 21h
+
+
+```
+Finally, this code sets `ah` to 4Ch (the exit function code) and invokes interrupt 21h to exit the program.
+
+```
+new_line proc
+    mov ah, 2
+    mov dl, 10
+    int 21h
+    mov dl, 13
+    int 21h
+    ret
+new_line endp
+```
+This is a procedure named `new_line` that prints a new line character by invoking interrupt 21h function 02h (print character) with `dl` set to 10 (line feed) and then invokes the same function with `dl` set to 13 (carriage return). Finally, it returns from the procedure.
+
+```
+end main
+```
+This marks the end of the `main` procedure.
+
+That's a complete walkthrough of the code, explaining each line's purpose and functionality.
